@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TF2 Clone</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+        }
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+        .hud {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: white;
+            font-family: Arial, sans-serif;
+            user-select: none;
+        }
+        .health {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        .ammo {
+            font-size: 20px;
+        }
+        .crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            pointer-events: none;
+        }
+        .crosshair:before, .crosshair:after {
+            content: '';
+            position: absolute;
+            background-color: white;
+        }
+        .crosshair:before {
+            width: 2px;
+            height: 20px;
+            left: 9px;
+        }
+        .crosshair:after {
+            width: 20px;
+            height: 2px;
+            top: 9px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="renderCanvas"></canvas>
+    <div class="crosshair"></div>
+    <div class="hud">
+        <div class="health">HP: 100</div>
+        <div class="ammo">Ammo: 12/24</div>
+    </div>
+
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/cannon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <script>
+        // Configuração inicial do jogo
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true);
+        
+        // Criação da cena
+        const createScene = function() {
+            const scene = new BABYLON.Scene(engine);
+            scene.gravity = new BABYLON.Vector3(0, -9.81, 0);
+            scene.collisionsEnabled = true;
+            
+            // Câmera FPS
+            const camera = new BABYLON.FreeCamera("camera1", 
+                new BABYLON.Vector3(0, 1.8, 0), scene);
+            camera.setTarget(new BABYLON.Vector3(0, 1.8, 1));
+            camera.attachControl(canvas, true);
+            camera.applyGravity = true;
+            camera.checkCollisions = true;
+            camera.ellipsoid = new BABYLON.Vector3(0.5, 0.9, 0.5);
+            
+            // Luz
+            const light = new BABYLON.HemisphericLight("light", 
+                new BABYLON.Vector3(0, 1, 0), scene);
+            light.intensity = 0.7;
+            
+            // Chão
+            const ground = BABYLON.MeshBuilder.CreateGround("ground", 
+                {width: 50, height: 50}, scene);
+            ground.checkCollisions = true;
+            
+            // Material do chão
+            const groundMaterial = new BABYLON.StandardMaterial("groundMat", scene);
+            groundMaterial.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+            ground.material = groundMaterial;
+            
+            // Caixas para obstáculos
+            for(let i = 0; i < 10; i++) {
+                const box = BABYLON.MeshBuilder.CreateBox("box" + i, 
+                    {size: 2}, scene);
+                box.position.x = Math.random() * 20 - 10;
+                box.position.z = Math.random() * 20 - 10;
+                box.position.y = 1;
+                box.checkCollisions = true;
+                
+                const boxMaterial = new BABYLON.StandardMaterial("boxMat" + i, scene);
+                boxMaterial.diffuseColor = new BABYLON.Color3(
+                    Math.random(), Math.random(), Math.random()
+                );
+                box.material = boxMaterial;
+            }
+            
+            // Ponto de controle simples
+            const controlPoint = BABYLON.MeshBuilder.CreateCylinder("controlPoint", 
+                {height: 0.2, diameter: 5}, scene);
+            controlPoint.position.y = 0.1;
+            controlPoint.position.z = 10;
+            
+            const cpMaterial = new BABYLON.StandardMaterial("cpMat", scene);
+            cpMaterial.diffuseColor = new BABYLON.Color3(0.7, 0.7, 0.2);
+            controlPoint.material = cpMaterial;
+            
+            return scene;
+        };
+        
+        const scene = createScene();
+        
+        // Função de atirar
+        let canShoot = true;
+        const shoot = function() {
+            if (!canShoot) return;
+            
+            canShoot = false;
+            setTimeout(() => { canShoot = true; }, 500); // Cooldown de 500ms
+            
+            const camera = scene.getCameraByName("camera1");
+            const direction = camera.getTarget().subtract(camera.position).normalize();
+            
+            // Projétil
+            const bullet = BABYLON.MeshBuilder.CreateSphere("bullet", 
+                {diameter: 0.2}, scene);
+            bullet.position = camera.position.clone();
+            bullet.position.addInPlace(direction.scale(1)); // Posição inicial à frente da câmera
+            
+            // Física do projétil
+            bullet.physicsImpostor = new BABYLON.PhysicsImpostor(bullet, 
+                BABYLON.PhysicsImpostor.SphereImpostor, { mass: 1 }, scene);
+            bullet.physicsImpostor.applyImpulse(direction.scale(20), bullet.getAbsolutePosition());
+            
+            // Auto-destruir depois de 2 segundos
+            setTimeout(() => {
+                bullet.dispose();
+            }, 2000);
+        };
+        
+        // Event listeners
+        scene.onPointerDown = function(evt) {
+            if (evt.button === 0) { // Botão esquerdo do mouse
+                shoot();
+            }
+        };
+        
+        // Engine render loop
+        engine.runRenderLoop(function() {
+            scene.render();
+        });
+        
+        // Resize event handler
+        window.addEventListener("resize", function() {
+            engine.resize();
+        });
+    </script>
+</body>
+</html>
