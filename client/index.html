@@ -11,6 +11,7 @@
             overflow: hidden;
             width: 100%;
             height: 100%;
+            font-family: Arial, sans-serif;
         }
         #renderCanvas {
             width: 100%;
@@ -22,8 +23,8 @@
             bottom: 20px;
             left: 20px;
             color: white;
-            font-family: Arial, sans-serif;
             user-select: none;
+            z-index: 10;
         }
         .health {
             font-size: 24px;
@@ -40,6 +41,7 @@
             width: 20px;
             height: 20px;
             pointer-events: none;
+            z-index: 5;
         }
         .crosshair:before, .crosshair:after {
             content: '';
@@ -56,128 +58,1459 @@
             height: 2px;
             top: 9px;
         }
+        
+        /* Adições para o painel de controle do cliente de teste */
+        #testPanel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 300px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 20;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        #testPanel h3 {
+            margin-top: 5px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        #testPanel button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            text-align: center;
+            margin: 2px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        #testPanel button:hover {
+            background-color: #45a049;
+        }
+        #testPanel button.danger {
+            background-color: #f44336;
+        }
+        #testPanel button.danger:hover {
+            background-color: #d32f2f;
+        }
+        #testPanel input {
+            width: 100%;
+            padding: 5px;
+            margin: 5px 0;
+            box-sizing: border-box;
+        }
+        #logArea {
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 5px;
+            border-radius: 3px;
+            height: 150px;
+            overflow-y: scroll;
+            font-family: monospace;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+        .logEntry {
+            margin: 2px 0;
+            word-wrap: break-word;
+        }
+        .player-list {
+            margin-top: 10px;
+        }
+        .player-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 3px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+        .player-info {
+            flex-grow: 1;
+        }
+        #togglePanel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            z-index: 30;
+            border-radius: 3px;
+        }
+        .hidden {
+            display: none !important;
+        }
+        .chat-area {
+            position: absolute;
+            left: 20px;
+            bottom: 80px;
+            width: 300px;
+            color: white;
+            z-index: 15;
+        }
+        .chat-messages {
+            height: 150px;
+            overflow-y: auto;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 5px;
+            border-radius: 3px;
+            margin-bottom: 5px;
+        }
+        .chat-input {
+            display: flex;
+        }
+        .chat-input input {
+            flex-grow: 1;
+            padding: 5px;
+            border-radius: 3px;
+            border: none;
+        }
+        .chat-input button {
+            margin-left: 5px;
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .team-blu {
+            color: #5b9bd5;
+        }
+        .team-red {
+            color: #ed7d31;
+        }
     </style>
 </head>
 <body>
     <canvas id="renderCanvas"></canvas>
     <div class="crosshair"></div>
     <div class="hud">
-        <div class="health">HP: 100</div>
-        <div class="ammo">Ammo: 12/24</div>
+        <div class="health">HP: <span id="healthValue">100</span></div>
+        <div class="ammo">Ammo: <span id="ammoValue">12/24</span></div>
+    </div>
+    
+    <div class="chat-area">
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-input">
+            <input type="text" id="chatInput" placeholder="Digite uma mensagem...">
+            <button id="sendChat">Enviar</button>
+        </div>
+    </div>
+    
+    <button id="togglePanel">Mostrar Painel</button>
+    
+    <div id="testPanel" class="hidden">
+        <h3>Cliente de Teste TF2 Clone</h3>
+        
+        <div>
+            <label for="serverUrl">URL do Servidor:</label>
+            <input type="text" id="serverUrl" value="http://localhost:5500/api">
+        </div>
+        <div>
+            <label for="wsUrl">URL do WebSocket:</label>
+            <input type="text" id="wsUrl" value="ws://localhost:5500/game">
+        </div>
+        
+        <div style="margin-top: 10px; display: flex; flex-wrap: wrap; justify-content: space-between;">
+            <button id="btnConnect">Conectar</button>
+            <button id="btnDisconnect" class="danger">Desconectar</button>
+            <button id="btnStatus">Status</button>
+            <button id="btnStartSim">Iniciar Simulação</button>
+            <button id="btnStopSim">Parar Simulação</button>
+            <button id="btnAddPlayer">Adicionar Bot</button>
+            <button id="btnClearLog">Limpar Log</button>
+        </div>
+        
+        <div class="player-list" id="playerList">
+            <h4>Jogadores Conectados</h4>
+            <!-- Lista de jogadores será inserida aqui -->
+        </div>
+        
+        <div id="logArea">
+            <!-- Log será inserido aqui -->
+        </div>
     </div>
 
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/cannon.js"></script>
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    
     <script>
-        // Configuração inicial do jogo
-        const canvas = document.getElementById("renderCanvas");
-        const engine = new BABYLON.Engine(canvas, true);
-        
-        // Criação da cena
-        const createScene = function() {
-            const scene = new BABYLON.Scene(engine);
-            scene.gravity = new BABYLON.Vector3(0, -9.81, 0);
-            scene.collisionsEnabled = true;
-            
-            // Câmera FPS
-            const camera = new BABYLON.FreeCamera("camera1", 
-                new BABYLON.Vector3(0, 1.8, 0), scene);
-            camera.setTarget(new BABYLON.Vector3(0, 1.8, 1));
-            camera.attachControl(canvas, true);
-            camera.applyGravity = true;
-            camera.checkCollisions = true;
-            camera.ellipsoid = new BABYLON.Vector3(0.5, 0.9, 0.5);
-            
-            // Luz
-            const light = new BABYLON.HemisphericLight("light", 
-                new BABYLON.Vector3(0, 1, 0), scene);
-            light.intensity = 0.7;
-            
-            // Chão
-            const ground = BABYLON.MeshBuilder.CreateGround("ground", 
-                {width: 50, height: 50}, scene);
-            ground.checkCollisions = true;
-            
-            // Material do chão
-            const groundMaterial = new BABYLON.StandardMaterial("groundMat", scene);
-            groundMaterial.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
-            ground.material = groundMaterial;
-            
-            // Caixas para obstáculos
-            for(let i = 0; i < 10; i++) {
-                const box = BABYLON.MeshBuilder.CreateBox("box" + i, 
-                    {size: 2}, scene);
-                box.position.x = Math.random() * 20 - 10;
-                box.position.z = Math.random() * 20 - 10;
-                box.position.y = 1;
-                box.checkCollisions = true;
+        // ===== Cliente de Teste (Adaptado do código Node.js) =====
+        class Config {
+            constructor() {
+                this.apiUrl = 'http://localhost:5500/api';
+                this.wsUrl = 'ws://localhost:5500/game';
+                this.numTestPlayers = 3;
+                this.debug = true;
+                this.fallbackEndpoints = [
+                    { apiUrl: 'http://localhost:5500', wsUrl: 'ws://localhost:5500' },
+                    { apiUrl: 'http://localhost:5500/api', wsUrl: 'ws://localhost:5500/ws' },
+                    { apiUrl: 'http://localhost:5500/api', wsUrl: 'ws://localhost:5500/socket' },
+                    { apiUrl: 'http://localhost:3000/api', wsUrl: 'ws://localhost:3000/game' }
+                ];
+            }
+        }
+
+        class Logger {
+            constructor(config) {
+                this.config = config;
+                this.logArea = document.getElementById('logArea');
+            }
+
+            log(message, isDebug = false) {
+                if (!isDebug || this.config.debug) {
+                    console.log(message);
+                    this.addLogEntry(message);
+                }
+            }
+
+            error(message, error) {
+                console.error(`ERROR: ${message}`);
+                this.addLogEntry(`ERROR: ${message}`, 'error');
                 
-                const boxMaterial = new BABYLON.StandardMaterial("boxMat" + i, scene);
-                boxMaterial.diffuseColor = new BABYLON.Color3(
-                    Math.random(), Math.random(), Math.random()
+                if (error) {
+                    if (error.response) {
+                        console.error(`Status: ${error.response.status}`);
+                        console.error(`Resposta: ${JSON.stringify(error.response.data)}`);
+                        this.addLogEntry(`Status: ${error.response.status}`, 'error');
+                    } else if (error.request) {
+                        console.error('Sem resposta do servidor. Verifique se o servidor está rodando.');
+                        this.addLogEntry('Sem resposta do servidor.', 'error');
+                    } else {
+                        console.error(`Mensagem: ${error.message}`);
+                        this.addLogEntry(`Mensagem: ${error.message}`, 'error');
+                    }
+                }
+            }
+            
+            addLogEntry(message, type = 'info') {
+                if (!this.logArea) return;
+                
+                const entry = document.createElement('div');
+                entry.className = `logEntry log-${type}`;
+                entry.textContent = message;
+                this.logArea.appendChild(entry);
+                this.logArea.scrollTop = this.logArea.scrollHeight;
+                
+                // Limitar o número de entradas de log
+                if (this.logArea.children.length > 100) {
+                    this.logArea.removeChild(this.logArea.children[0]);
+                }
+            }
+            
+            clearLog() {
+                if (this.logArea) {
+                    this.logArea.innerHTML = '';
+                }
+            }
+        }
+
+        class TestPlayer {
+            constructor(id, logger, config, gameManager, mockMode = false) {
+                this.id = id;
+                this.username = `Bot${id}`;
+                this.logger = logger;
+                this.config = config;
+                this.gameManager = gameManager;
+                this.mockMode = mockMode;
+                this.connection = null;
+                this.position = { x: Math.random() * 20 - 10, y: 1.8, z: Math.random() * 20 - 10 };
+                this.health = 100;
+                this.ammo = { current: 12, max: 24 };
+                this.team = id % 2 === 0 ? 'RED' : 'BLU';
+                this.playerClass = this.getRandomClass();
+                this.connected = false;
+                this.playerId = null;
+                this.heartbeatInterval = null;
+                this.mesh = null; // Referência ao mesh do jogador no jogo
+            }
+
+            getRandomClass() {
+                const classes = ['Scout', 'Soldier', 'Pyro', 'Demoman', 'Heavy', 'Engineer', 'Medic', 'Sniper', 'Spy'];
+                return classes[Math.floor(Math.random() * classes.length)];
+            }
+
+            async connect() {
+                if (this.mockMode) {
+                    this.playerId = `mock_player_${this.id}`;
+                    this.connected = true;
+                    this.logger.log(`Bot ${this.username} conectado em modo mock`);
+                    this.startHeartbeat();
+                    this.createPlayerMesh();
+                    this.gameManager.updatePlayerList();
+                    return;
+                }
+
+                try {
+                    this.logger.log(`Conectando bot ${this.username}...`);
+                    
+                    // Verificar health do servidor
+                    if (!await this.checkServerHealth()) {
+                        throw new Error('Servidor não está acessível');
+                    }
+                    
+                    // Tentar registrar o jogador
+                    await this.registerPlayer();
+                    
+                    // Conectar via WebSocket
+                    await this.connectWebSocket();
+                    
+                    // Criar representação visual do jogador
+                    this.createPlayerMesh();
+                    
+                    // Atualizar a lista de jogadores
+                    this.gameManager.updatePlayerList();
+                    
+                    return true;
+                } catch (error) {
+                    this.logger.error(`Erro ao conectar ${this.username}`, error);
+                    throw error;
+                }
+            }
+            
+            createPlayerMesh() {
+                if (!this.gameManager.scene) return;
+                
+                // Criar um cubo para representar o jogador
+                const scene = this.gameManager.scene;
+                this.mesh = BABYLON.MeshBuilder.CreateBox(`player_${this.id}`, {width: 1, height: 2, depth: 1}, scene);
+                this.mesh.position = new BABYLON.Vector3(this.position.x, this.position.y, this.position.z);
+                
+                // Material baseado no time
+                const material = new BABYLON.StandardMaterial(`player_mat_${this.id}`, scene);
+                material.diffuseColor = this.team === 'RED' 
+                    ? new BABYLON.Color3(0.9, 0.3, 0.2) // Vermelho
+                    : new BABYLON.Color3(0.2, 0.4, 0.8); // Azul
+                this.mesh.material = material;
+                
+                // Adicionar texto com nome do jogador
+                const playerName = this.createPlayerNameplate(scene);
+                playerName.parent = this.mesh;
+            }
+            
+            createPlayerNameplate(scene) {
+                const plane = BABYLON.MeshBuilder.CreatePlane(`nameplate_${this.id}`, {width: 1.5, height: 0.3}, scene);
+                plane.position.y = 1.5; // Posição acima da cabeça
+                
+                const dynamicTexture = new BABYLON.DynamicTexture(`nameTexture_${this.id}`, {width: 256, height: 64}, scene);
+                const material = new BABYLON.StandardMaterial(`nameMaterial_${this.id}`, scene);
+                
+                dynamicTexture.hasAlpha = true;
+                material.diffuseTexture = dynamicTexture;
+                material.specularColor = new BABYLON.Color3(0, 0, 0);
+                material.emissiveColor = new BABYLON.Color3(1, 1, 1);
+                material.backFaceCulling = false;
+                
+                // Desenhar o texto no texture
+                const nameText = `${this.username} (${this.playerClass})`;
+                dynamicTexture.drawText(nameText, null, 40, "bold 24px Arial", this.team === 'RED' ? "#ed7d31" : "#5b9bd5", "transparent");
+                
+                plane.material = material;
+                plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
+                
+                return plane;
+            }
+            
+            async checkServerHealth() {
+                if (this.mockMode) return true;
+                
+                try {
+                    const response = await fetch(`${this.config.apiUrl}/health`, { method: 'GET' });
+                    return response.ok;
+                } catch (error) {
+                    try {
+                        const rootUrl = this.config.apiUrl.split('/api')[0];
+                        const response = await fetch(rootUrl, { method: 'GET' });
+                        return response.ok;
+                    } catch (err) {
+                        return false;
+                    }
+                }
+            }
+            
+            async registerPlayer() {
+                if (this.mockMode) {
+                    this.playerId = `mock_player_${this.id}`;
+                    return true;
+                }
+                
+                const registrationEndpoints = [
+                    `${this.config.apiUrl}/players/register`,
+                    `${this.config.apiUrl}/player/register`,
+                    `${this.config.apiUrl}/register`,
+                    `${this.config.apiUrl.split('/api')[0]}/api/players/register`
+                ];
+                
+                for (const endpoint of registrationEndpoints) {
+                    try {
+                        this.logger.log(`Tentando registrar jogador em: ${endpoint}`, true);
+                        const response = await fetch(endpoint, {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({
+                                username: this.username,
+                                playerClass: this.playerClass,
+                                team: this.team
+                            })
+                        });
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            this.playerId = data.playerId || data.id || `player_${this.id}`;
+                            this.logger.log(`Jogador ${this.username} registrado com ID: ${this.playerId}`);
+                            return true;
+                        }
+                    } catch (error) {
+                        this.logger.log(`Falha ao registrar em ${endpoint}: ${error.message}`, true);
+                    }
+                }
+                
+                // Se todas as tentativas falharem, usar ID de fallback
+                this.playerId = `fallback_player_${this.id}`;
+                this.logger.log(`Usando ID de fallback: ${this.playerId}`);
+                return false;
+            }
+            
+            async connectWebSocket() {
+                if (this.mockMode) {
+                    this.connected = true;
+                    return true;
+                }
+                
+                const wsEndpoints = [
+                    `${this.config.wsUrl}?id=${this.playerId}`,
+                    `${this.config.wsUrl}/${this.playerId}`,
+                    `${this.config.wsUrl}`,
+                    `${this.config.apiUrl.split('/api')[0].replace('http', 'ws')}/game?id=${this.playerId}`,
+                    `${this.config.apiUrl.split('/api')[0].replace('http', 'ws')}/ws?id=${this.playerId}`,
+                    `${this.config.apiUrl.split('/api')[0].replace('http', 'ws')}/socket?id=${this.playerId}`
+                ];
+                
+                let connected = false;
+                
+                for (const wsUrl of wsEndpoints) {
+                    try {
+                        this.logger.log(`Tentando conectar WebSocket em: ${wsUrl}`, true);
+                        
+                        this.connection = new WebSocket(wsUrl);
+                        
+                        // Usando Promise para esperar conexão ou erro
+                        await new Promise((resolve, reject) => {
+                            const timeout = setTimeout(() => {
+                                reject(new Error('Timeout de conexão'));
+                            }, 3000);
+                            
+                            this.connection.onopen = () => {
+                                clearTimeout(timeout);
+                                this.logger.log(`Conexão WebSocket estabelecida para ${this.username} em ${wsUrl}`);
+                                this.connected = true;
+                                resolve();
+                            };
+                            
+                            this.connection.onclose = () => {
+                                this.logger.log(`Conexão fechada para ${this.username}`);
+                                this.connected = false;
+                                if (this.heartbeatInterval) {
+                                    clearInterval(this.heartbeatInterval);
+                                }
+                            };
+                            
+                            this.connection.onmessage = (event) => {
+                                this.handleServerMessage(event.data);
+                            };
+                            
+                            this.connection.onerror = (error) => {
+                                clearTimeout(timeout);
+                                reject(new Error('Erro de conexão WebSocket'));
+                            };
+                        });
+                        
+                        connected = true;
+                        this.startHeartbeat();
+                        break;
+                    } catch (error) {
+                        this.logger.log(`Erro ao conectar WebSocket em ${wsUrl}: ${error.message}`, true);
+                    }
+                }
+                
+                if (!connected) {
+                    throw new Error('Não foi possível conectar ao WebSocket em nenhum endpoint');
+                }
+                
+                return connected;
+            }
+            
+            disconnect() {
+                if (this.heartbeatInterval) {
+                    clearInterval(this.heartbeatInterval);
+                }
+                
+                if (this.connection) {
+                    try {
+                        this.connection.close();
+                        this.logger.log(`Jogador ${this.username} desconectado`);
+                    } catch (error) {
+                        this.logger.error(`Erro ao desconectar ${this.username}`, error);
+                    }
+                }
+                
+                // Remover mesh do jogador
+                if (this.mesh) {
+                    this.mesh.dispose();
+                    this.mesh = null;
+                }
+                
+                this.connected = false;
+                this.gameManager.updatePlayerList();
+            }
+            
+            startHeartbeat() {
+                if (this.heartbeatInterval) {
+                    clearInterval(this.heartbeatInterval);
+                }
+                
+                this.heartbeatInterval = setInterval(() => {
+                    if (this.connected) {
+                        this.updatePosition();
+                        this.sendPosition();
+                    } else {
+                        clearInterval(this.heartbeatInterval);
+                    }
+                }, 100);
+            }
+            
+            updatePosition() {
+                // Atualizar posição aleatoriamente para simular movimento
+                this.position.x += (Math.random() - 0.5) * 0.1;
+                this.position.z += (Math.random() - 0.5) * 0.1;
+                
+                // Atualizar posição do mesh
+                if (this.mesh) {
+                    this.mesh.position.x = this.position.x;
+                    this.mesh.position.z = this.position.z;
+                }
+            }
+            
+            sendPosition() {
+                const message = {
+                    type: 'playerUpdate',
+                    data: {
+                        position: this.position,
+                        health: this.health,
+                        ammo: this.ammo.current
+                    }
+                };
+                
+                this.sendMessage(message);
+            }
+            
+            simulateShot(targetPlayer) {
+                if (!targetPlayer) return;
+                
+                this.logger.log(`${this.username} atirando em ${targetPlayer.username}`);
+                
+                const message = {
+                    type: 'playerAction',
+                    action: 'shoot',
+                    data: {
+                        targetId: targetPlayer.playerId,
+                        damage: 20,
+                        position: this.position,
+                        direction: {
+                            x: targetPlayer.position.x - this.position.x,
+                            y: 0,
+                            z: targetPlayer.position.z - this.position.z
+                        }
+                    }
+                };
+                
+                this.sendMessage(message);
+                
+                // Simular animação de tiro no jogo
+                this.createShotAnimation(targetPlayer);
+            }
+            
+            createShotAnimation(targetPlayer) {
+                if (!this.gameManager.scene || !this.mesh || !targetPlayer.mesh) return;
+                
+                const scene = this.gameManager.scene;
+                
+                // Criar linha de tiro
+                const startPos = this.mesh.position.clone();
+                startPos.y += 0.5; // Ajuste para o centro do jogador
+                
+                const endPos = targetPlayer.mesh.position.clone();
+                endPos.y += 0.5;
+                
+                const shotLine = BABYLON.MeshBuilder.CreateLines("shotLine", {
+                    points: [startPos, endPos]
+                }, scene);
+                
+                shotLine.color = new BABYLON.Color3(1, 0.6, 0.1);
+                
+                // Criar brilho na posição do impacto
+                const impact = BABYLON.MeshBuilder.CreateSphere("impact", {diameter: 0.3}, scene);
+                impact.position = endPos;
+                const material = new BABYLON.StandardMaterial("impactMat", scene);
+                material.emissiveColor = new BABYLON.Color3(1, 0.6, 0.1);
+                impact.material = material;
+                
+                // Remover após animação
+                setTimeout(() => {
+                    shotLine.dispose();
+                    impact.dispose();
+                }, 200);
+            }
+            
+            handleServerMessage(data) {
+                try {
+                    const message = JSON.parse(data);
+                    
+                    switch (message.type) {
+                        case 'gameState':
+                            this.logger.log(`${this.username} recebeu atualização do estado do jogo`, true);
+                            break;
+                            
+                        case 'playerDamage':
+                            this.logger.log(`${this.username} recebeu dano: ${message.data.damage} de ${message.data.sourcePlayer}`);
+                            this.health -= message.data.damage;
+                            
+                            // Animar dano
+                            if (this.mesh) {
+                                this.animatePlayerHit();
+                            }
+                            
+                            if (this.health <= 0) {
+                                this.logger.log(`${this.username} foi eliminado!`);
+                                this.health = 100; // Respawn
+                                
+                                // Reposicionar depois de um tempo
+                                if (this.mesh) {
+                                    this.mesh.setEnabled(false);
+                                    setTimeout(() => {
+                                        this.position = { 
+                                            x: Math.random() * 20 - 10, 
+                                            y: 1.8, 
+                                            z: Math.random() * 20 - 10 
+                                        };
+                                        
+                                        this.mesh.position = new BABYLON.Vector3(
+                                            this.position.x, 
+                                            this.position.y, 
+                                            this.position.z
+                                        );
+                                        this.mesh.setEnabled(true);
+                                    }, 2000);
+                                }
+                            }
+                            break;
+                            
+                        case 'chatMessage':
+                            const sender = message.data.sender || this.username;
+                            this.logger.log(`Chat: ${sender}: ${message.data.message}`);
+                            this.gameManager.addChatMessage(sender, message.data.message, this.team);
+                            break;
+                            
+                        case 'pointCaptured':
+                            this.logger.log(`Ponto ${message.data.pointId} capturado pelo time ${message.data.team}`);
+                            break;
+                            
+                        default:
+                            this.logger.log(`${this.username} recebeu mensagem: ${message.type}`, true);
+                    }
+                } catch (error) {
+                    this.logger.error(`Erro ao processar mensagem para ${this.username}`, error);
+                }
+            }
+            
+            animatePlayerHit() {
+                if (!this.mesh) return;
+                
+                // Flash vermelho do material
+                const originalMaterial = this.mesh.material;
+                const hitMaterial = new BABYLON.StandardMaterial("hitMaterial", this.gameManager.scene);
+                hitMaterial.diffuseColor = new BABYLON.Color3(1, 0, 0);
+                hitMaterial.alpha = 0.7;
+                
+                this.mesh.material = hitMaterial;
+                
+                setTimeout(() => {
+                    if (this.mesh) {
+                        this.mesh.material = originalMaterial;
+                    }
+                }, 100);
+            }
+            
+            sendMessage(message) {
+                if (this.mockMode) {
+                    // Em modo mock, apenas registrar a mensagem
+                    this.logger.log(`[MOCK] ${this.username} enviou: ${JSON.stringify(message)}`, true);
+                    
+                    // Se for tiro, simular dano no modo mock
+                    if (message.type === 'playerAction' && message.action === 'shoot') {
+                        setTimeout(() => {
+                            const targetPlayer = this.gameManager.getPlayerById(message.data.targetId);
+                            if (targetPlayer) {
+                                targetPlayer.handleServerMessage(JSON.stringify({
+                                    type: 'playerDamage',
+                                    data: {
+                                        damage: message.data.damage,
+                                        sourcePlayer: this.username
+                                    }
+                                }));
+                            }
+                        }, 100);
+                    }
+                    return;
+                }
+                
+                if (this.connected && this.connection) {
+                    try {
+                        this.connection.send(JSON.stringify(message));
+                    } catch (error) {
+                        this.logger.error(`Erro ao enviar mensagem para ${this.username}`, error);
+                        this.connected = false;
+                    }
+                }
+            }
+            
+            sendChatMessage(text) {
+                const message = {
+                    type: 'chatMessage',
+                    data: {
+                        message: text
+                    }
+                };
+                
+                this.sendMessage(message);
+                this.logger.log(`${this.username} enviou mensagem: ${text}`);
+            }
+        }
+
+        class GameManager {
+            constructor() {
+                this.config = new Config();
+                this.logger = new Logger(this.config);
+                this.players = [];
+                this.mockMode = false;
+                this.simulationActive = false;
+                this.simulationInterval = null;
+                this.scene = null;
+                this.engine = null;
+                this.mainPlayer = null;
+                
+                // Elementos da UI
+                this.playerListElem = document.getElementById('playerList');
+                this.chatMessages = document.getElementById('chatMessages');
+                this.healthDisplay = document.getElementById('healthValue');
+                this.ammoDisplay = document.getElementById('ammoValue');
+                
+                // Carregar configurações da UI
+                this.loadUIConfig();
+                
+                // Inicializar evento de botões
+                this.setupEventListeners();
+            }
+            
+            loadUIConfig() {
+                const serverUrl = document.getElementById('serverUrl');
+                const wsUrl = document.getElementById('wsUrl');
+                
+                if (serverUrl && wsUrl) {
+                    serverUrl.value = localStorage.getItem('serverUrl') || this.config.apiUrl;
+                    wsUrl.value = localStorage.getItem('wsUrl') || this.config.wsUrl;
+                }
+            }
+            
+            saveUIConfig() {
+                const serverUrl = document.getElementById('serverUrl');
+                const wsUrl = document.getElementById('wsUrl');
+                
+                if (serverUrl && wsUrl) {
+                    localStorage.setItem('serverUrl', serverUrl.value);
+                    localStorage.setItem('wsUrl', wsUrl.value);
+                    
+                    this.config.apiUrl = serverUrl.value;
+                    this.config.wsUrl = wsUrl.value;
+                }
+            }
+            
+            setupEventListeners() {
+                // Botões do painel de controle
+                document.getElementById('btnConnect').addEventListener('click', () => this.connectPlayer());
+                document.getElementById('btnDisconnect').addEventListener('click', () => this.disconnectAllPlayers());
+                document.getElementById('btnStatus').addEventListener('click', () => this.checkStatus());
+                document.getElementById('btnStartSim').addEventListener('click', () => this.startSimulation());
+                document.getElementById('btnStopSim').addEventListener('click', () => this.stopSimulation());
+                document.getElementById('btnAddPlayer').addEventListener('click', () => this.addBot());
+                document.getElementById('btnClearLog').addEventListener('click', () => this.logger.clearLog());
+                
+                // Toggle do painel
+                document.getElementById('togglePanel').addEventListener('click', () => {
+                    const panel = document.getElementById('testPanel');
+                    const toggleBtn = document.getElementById('togglePanel');
+                    
+                    if (panel.classList.contains('hidden')) {
+                        panel.classList.remove('hidden');
+                        toggleBtn.textContent = 'Ocultar Painel';
+                    } else {
+                        panel.classList.add('hidden');
+                        toggleBtn.textContent = 'Mostrar Painel';
+                    }
+                });
+                
+                // Chat
+                document.getElementById('sendChat').addEventListener('click', () => this.sendChatMessage());
+                document.getElementById('chatInput').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        this.sendChatMessage();
+                    }
+                });
+                
+                // Inicializar o input do chat
+                const chatInput = document.getElementById('chatInput');
+                chatInput.addEventListener('focus', () => {
+                    // Desabilitar controle da câmera enquanto estiver digitando
+                    if (this.scene && this.scene.activeCamera) {
+                        this.scene.activeCamera.detachControl();
+                    }
+                });
+                
+                chatInput.addEventListener('blur', () => {
+                    // Reabilitar controle da câmera ao sair do campo de chat
+                    if (this.scene && this.scene.activeCamera) {
+                        this.scene.activeCamera.attachControl(this.engine.getRenderingCanvas());
+                    }
+                });
+                
+                // Eventos de teclado para o jogo
+                window.addEventListener('keydown', (e) => {
+                    if (e.key === 'Tab') {
+                        e.preventDefault();
+                        // Mostrar placar temporariamente
+                        const panel = document.getElementById('testPanel');
+                        if (panel.classList.contains('hidden')) {
+                            panel.classList.remove('hidden');
+                            setTimeout(() => {
+                                panel.classList.add('hidden');
+                            }, 3000);
+                        }
+                    }
+                    
+                    if (e.key === 'Enter') {
+                        // Focar no chat
+                        const chatInput = document.getElementById('chatInput');
+                        if (document.activeElement !== chatInput) {
+                            chatInput.focus();
+                        }
+                    }
+                });
+            }
+            
+            async initGame() {
+                // Criar o motor Babylon
+                const canvas = document.getElementById('renderCanvas');
+                this.engine = new BABYLON.Engine(canvas, true);
+                
+                // Criar a cena
+                this.scene = new BABYLON.Scene(this.engine);
+                
+                // Configurar física
+                const gravityVector = new BABYLON.Vector3(0, -9.81, 0);
+                const physicsPlugin = new BABYLON.CannonJSPlugin();
+                this.scene.enablePhysics(gravityVector, physicsPlugin);
+                
+                // Configurar câmera
+                const camera = new BABYLON.FreeCamera("playerCamera", new BABYLON.Vector3(0, 1.8, -5), this.scene);
+                camera.setTarget(new BABYLON.Vector3(0, 1.8, 0));
+                camera.attachControl(canvas, true);
+                camera.speed = 0.2;
+                camera.angularSensibility = 1000; // Menor valor = maior sensibilidade
+                camera.applyGravity = true;
+                camera.checkCollisions = true;
+                camera.ellipsoid = new BABYLON.Vector3(0.5, 0.9, 0.5);
+                
+                // Adicionar luz
+                const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), this.scene);
+                light.intensity = 0.7;
+                
+                // Criar ambiente básico
+                this.createEnvironment();
+                
+                // Criar jogador principal
+                this.createMainPlayer();
+                
+                // Iniciar o loop de renderização
+                this.engine.runRenderLoop(() => {
+                    this.scene.render();
+                });
+                
+                // Redimensionar o canvas quando a janela é redimensionada
+                window.addEventListener('resize', () => {
+                    this.engine.resize();
+                });
+                
+                // Inicializar em modo de simulação local se não puder conectar ao servidor
+                try {
+                    await this.checkServerConnection();
+                } catch (error) {
+                    this.logger.log("Não foi possível conectar ao servidor. Iniciando em modo de simulação local.");
+                    this.mockMode = true;
+                }
+                
+                this.logger.log("Jogo inicializado com sucesso!");
+            }
+            
+            async checkServerConnection() {
+                try {
+                    const response = await fetch(`${this.config.apiUrl}/health`, { method: 'GET' });
+                    return response.ok;
+                } catch (error) {
+                    throw new Error("Não foi possível conectar ao servidor");
+                }
+            }
+            
+            createEnvironment() {
+                // Criar chão
+                const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 100, height: 100}, this.scene);
+                ground.checkCollisions = true;
+                
+                const groundMaterial = new BABYLON.StandardMaterial("groundMaterial", this.scene);
+                groundMaterial.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+                groundMaterial.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+                
+                // Aplicar textura de grade ao chão
+                const gridTexture = new BABYLON.GridMaterial("gridMaterial", this.scene);
+                gridTexture.gridRatio = 1;
+                gridTexture.mainColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+                gridTexture.lineColor = new BABYLON.Color3(0.8, 0.8, 0.8);
+                
+                ground.material = gridTexture;
+                
+                // Criar algumas estruturas básicas (caixas, paredes)
+                const structures = [
+                    { position: [5, 1, 5], size: [2, 2, 2], color: [0.7, 0.4, 0.3] },
+                    { position: [-5, 1, -5], size: [2, 2, 2], color: [0.3, 0.4, 0.7] },
+                    { position: [0, 1.5, 10], size: [10, 3, 1], color: [0.5, 0.5, 0.5] },
+                    { position: [10, 1.5, 0], size: [1, 3, 10], color: [0.5, 0.5, 0.5] },
+                    { position: [-10, 1.5, 0], size: [1, 3, 15], color: [0.5, 0.5, 0.5] }
+                ];
+                
+                structures.forEach((structure, index) => {
+                    const box = BABYLON.MeshBuilder.CreateBox(`structure_${index}`, {
+                        width: structure.size[0],
+                        height: structure.size[1],
+                        depth: structure.size[2]
+                    }, this.scene);
+                    
+                    box.position = new BABYLON.Vector3(
+                        structure.position[0],
+                        structure.position[1],
+                        structure.position[2]
+                    );
+                    
+                    const material = new BABYLON.StandardMaterial(`structure_material_${index}`, this.scene);
+                    material.diffuseColor = new BABYLON.Color3(
+                        structure.color[0],
+                        structure.color[1],
+                        structure.color[2]
+                    );
+                    
+                    box.material = material;
+                    box.checkCollisions = true;
+                });
+                
+                // Criar pontos de captura (áreas circulares)
+                const capturePoints = [
+                    { position: [0, 0.1, 0], radius: 3, team: "NEUTRAL", id: "central" },
+                    { position: [15, 0.1, 15], radius: 2, team: "RED", id: "red_spawn" },
+                    { position: [-15, 0.1, -15], radius: 2, team: "BLU", id: "blu_spawn" }
+                ];
+                
+                capturePoints.forEach((point, index) => {
+                    const disc = BABYLON.MeshBuilder.CreateDisc(`capture_point_${point.id}`, {
+                        radius: point.radius
+                    }, this.scene);
+                    
+                    disc.position = new BABYLON.Vector3(
+                        point.position[0],
+                        point.position[1],
+                        point.position[2]
+                    );
+                    
+                    disc.rotation = new BABYLON.Vector3(Math.PI / 2, 0, 0);
+                    
+                    const material = new BABYLON.StandardMaterial(`capture_material_${index}`, this.scene);
+                    material.diffuseColor = point.team === "RED" 
+                        ? new BABYLON.Color3(0.8, 0.2, 0.2) 
+                        : point.team === "BLU" 
+                            ? new BABYLON.Color3(0.2, 0.4, 0.8)
+                            : new BABYLON.Color3(0.8, 0.8, 0.2);
+                    material.alpha = 0.5;
+                    
+                    disc.material = material;
+                });
+                
+                // Adicionar skybox
+                const skybox = BABYLON.MeshBuilder.CreateBox("skybox", {size: 1000}, this.scene);
+                const skyboxMaterial = new BABYLON.StandardMaterial("skyboxMaterial", this.scene);
+                skyboxMaterial.backFaceCulling = false;
+                skyboxMaterial.reflectionTexture = new BABYLON.CubeTexture("https://playground.babylonjs.com/textures/skybox", this.scene);
+                skyboxMaterial.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
+                skyboxMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0);
+                skyboxMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
+                skybox.material = skyboxMaterial;
+            }
+            
+            createMainPlayer() {
+                // Criar jogador principal
+                this.mainPlayer = new TestPlayer(0, this.logger, this.config, this, true);
+                this.mainPlayer.username = "Você";
+                this.mainPlayer.playerClass = "Soldier";
+                this.mainPlayer.team = "RED";
+                this.mainPlayer.connected = true;
+                this.players.push(this.mainPlayer);
+                
+                // Atualizar HUD
+                this.updateHUD();
+                
+                // Adicionar controles de tiro
+                this.scene.onPointerDown = (evt) => {
+                    if (evt.button === 0) { // Botão esquerdo do mouse
+                        this.shoot();
+                    }
+                };
+                
+                // Configurar posição da câmera para o jogador principal
+                const camera = this.scene.activeCamera;
+                camera.position = new BABYLON.Vector3(
+                    this.mainPlayer.position.x,
+                    this.mainPlayer.position.y,
+                    this.mainPlayer.position.z
                 );
-                box.material = boxMaterial;
+                
+                // Atualizar a lista de jogadores
+                this.updatePlayerList();
             }
             
-            // Ponto de controle simples
-            const controlPoint = BABYLON.MeshBuilder.CreateCylinder("controlPoint", 
-                {height: 0.2, diameter: 5}, scene);
-            controlPoint.position.y = 0.1;
-            controlPoint.position.z = 10;
-            
-            const cpMaterial = new BABYLON.StandardMaterial("cpMat", scene);
-            cpMaterial.diffuseColor = new BABYLON.Color3(0.7, 0.7, 0.2);
-            controlPoint.material = cpMaterial;
-            
-            return scene;
-        };
-        
-        const scene = createScene();
-        
-        // Função de atirar
-        let canShoot = true;
-        const shoot = function() {
-            if (!canShoot) return;
-            
-            canShoot = false;
-            setTimeout(() => { canShoot = true; }, 500); // Cooldown de 500ms
-            
-            const camera = scene.getCameraByName("camera1");
-            const direction = camera.getTarget().subtract(camera.position).normalize();
-            
-            // Projétil
-            const bullet = BABYLON.MeshBuilder.CreateSphere("bullet", 
-                {diameter: 0.2}, scene);
-            bullet.position = camera.position.clone();
-            bullet.position.addInPlace(direction.scale(1)); // Posição inicial à frente da câmera
-            
-            // Física do projétil
-            bullet.physicsImpostor = new BABYLON.PhysicsImpostor(bullet, 
-                BABYLON.PhysicsImpostor.SphereImpostor, { mass: 1 }, scene);
-            bullet.physicsImpostor.applyImpulse(direction.scale(20), bullet.getAbsolutePosition());
-            
-            // Auto-destruir depois de 2 segundos
-            setTimeout(() => {
-                bullet.dispose();
-            }, 2000);
-        };
-        
-        // Event listeners
-        scene.onPointerDown = function(evt) {
-            if (evt.button === 0) { // Botão esquerdo do mouse
-                shoot();
+            shoot() {
+                // Verificar se tem munição
+                if (this.mainPlayer.ammo.current <= 0) {
+                    this.logger.log("Sem munição!");
+                    return;
+                }
+                
+                // Reduzir munição
+                this.mainPlayer.ammo.current--;
+                this.updateHUD();
+                
+                // Criar raio para verificar colisão
+                const camera = this.scene.activeCamera;
+                const ray = camera.getForwardRay(1000);
+                
+                // Verificar se atingiu algum jogador
+                const hit = this.scene.pickWithRay(ray);
+                if (hit.pickedMesh) {
+                    const meshName = hit.pickedMesh.name;
+                    
+                    // Verificar se o mesh é de um jogador
+                    if (meshName.startsWith("player_")) {
+                        const playerId = meshName.split("_")[1];
+                        const targetPlayer = this.getPlayerByMeshId(playerId);
+                        
+                        if (targetPlayer && targetPlayer !== this.mainPlayer) {
+                            // Verificar se é de um time diferente
+                            if (targetPlayer.team !== this.mainPlayer.team) {
+                                this.logger.log(`Acertou ${targetPlayer.username}!`);
+                                
+                                // Calcular dano
+                                const damage = 20;
+                                
+                                // Enviar mensagem de dano
+                                const message = {
+                                    type: 'playerAction',
+                                    action: 'shoot',
+                                    data: {
+                                        targetId: targetPlayer.playerId,
+                                        damage: damage,
+                                        position: this.mainPlayer.position,
+                                        direction: {
+                                            x: ray.direction.x,
+                                            y: ray.direction.y,
+                                            z: ray.direction.z
+                                        }
+                                    }
+                                };
+                                
+                                this.mainPlayer.sendMessage(message);
+                                
+                                // Em modo mock, aplicar dano diretamente
+                                if (this.mockMode) {
+                                    targetPlayer.handleServerMessage(JSON.stringify({
+                                        type: 'playerDamage',
+                                        data: {
+                                            damage: damage,
+                                            sourcePlayer: this.mainPlayer.username
+                                        }
+                                    }));
+                                }
+                                
+                                // Criar efeito de tiro
+                                this.createShotEffect(hit.pickedPoint);
+                            } else {
+                                this.logger.log("Não pode atirar em aliados!");
+                            }
+                        }
+                    } else {
+                        // Acertou algum objeto do cenário
+                        this.createShotEffect(hit.pickedPoint);
+                    }
+                }
+                
+                // Criar efeito de tiro da arma
+                this.createMuzzleFlash();
+                
+                // Tocar som de tiro
+                // this.playShotSound();
             }
-        };
-        
-        // Engine render loop
-        engine.runRenderLoop(function() {
-            scene.render();
-        });
-        
-        // Resize event handler
-        window.addEventListener("resize", function() {
-            engine.resize();
+            
+            createShotEffect(position) {
+                // Criar partículas no ponto de impacto
+                const particleSystem = new BABYLON.ParticleSystem("shotParticles", 50, this.scene);
+                particleSystem.particleTexture = new BABYLON.Texture("https://www.babylonjs-playground.com/textures/flare.png", this.scene);
+                
+                particleSystem.emitter = position;
+                particleSystem.minEmitBox = new BABYLON.Vector3(-0.1, -0.1, -0.1);
+                particleSystem.maxEmitBox = new BABYLON.Vector3(0.1, 0.1, 0.1);
+                
+                particleSystem.color1 = new BABYLON.Color4(1, 0.5, 0, 1.0);
+                particleSystem.color2 = new BABYLON.Color4(1, 0.5, 0, 1.0);
+                particleSystem.colorDead = new BABYLON.Color4(0, 0, 0, 0.0);
+                
+                particleSystem.minSize = 0.1;
+                particleSystem.maxSize = 0.3;
+                
+                particleSystem.minLifeTime = 0.1;
+                particleSystem.maxLifeTime = 0.3;
+                
+                particleSystem.emitRate = 300;
+                
+                particleSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
+                
+                particleSystem.gravity = new BABYLON.Vector3(0, -9.81, 0);
+                
+                particleSystem.direction1 = new BABYLON.Vector3(-1, 1, -1);
+                particleSystem.direction2 = new BABYLON.Vector3(1, 1, 1);
+                
+                particleSystem.minAngularSpeed = 0;
+                particleSystem.maxAngularSpeed = Math.PI;
+                
+                particleSystem.minEmitPower = 1;
+                particleSystem.maxEmitPower = 3;
+                particleSystem.updateSpeed = 0.05;
+                
+                particleSystem.start();
+                
+                setTimeout(() => {
+                    particleSystem.stop();
+                    setTimeout(() => {
+                        particleSystem.dispose();
+                    }, 1000);
+                }, 100);
+            }
+            
+            createMuzzleFlash() {
+                // Criar luz temporária para simular flash
+                const camera = this.scene.activeCamera;
+                const muzzleLight = new BABYLON.PointLight("muzzleFlash", camera.position.add(camera.getDirection(new BABYLON.Vector3(0, 0, 1))), this.scene);
+                muzzleLight.diffuse = new BABYLON.Color3(1, 0.7, 0.3);
+                muzzleLight.intensity = 1;
+                
+                setTimeout(() => {
+                    muzzleLight.dispose();
+                }, 50);
+            }
+            
+            reload() {
+                // Verificar se precisa recarregar
+                if (this.mainPlayer.ammo.current === this.mainPlayer.ammo.max) {
+                    return;
+                }
+                
+                this.logger.log("Recarregando...");
+                
+                // Simular tempo de recarga
+                setTimeout(() => {
+                    this.mainPlayer.ammo.current = this.mainPlayer.ammo.max;
+                    this.updateHUD();
+                    this.logger.log("Recarregado!");
+                }, 1500);
+            }
+            
+            updateHUD() {
+                // Atualizar informações de saúde e munição
+                if (this.healthDisplay) {
+                    this.healthDisplay.textContent = Math.floor(this.mainPlayer.health);
+                }
+                
+                if (this.ammoDisplay) {
+                    this.ammoDisplay.textContent = `${this.mainPlayer.ammo.current}/${this.mainPlayer.ammo.max}`;
+                }
+            }
+            
+            async connectPlayer() {
+                this.saveUIConfig();
+                
+                // Conectar o jogador principal
+                try {
+                    this.logger.log("Conectando ao servidor...");
+                    const success = await this.mainPlayer.connect();
+                    
+                    if (success) {
+                        this.logger.log("Conectado com sucesso!");
+                        this.mockMode = false;
+                        this.updatePlayerList();
+                    }
+                } catch (error) {
+                    this.logger.error("Falha ao conectar ao servidor", error);
+                    this.logger.log("Usando modo de simulação local...");
+                    this.mockMode = true;
+                }
+            }
+            
+            disconnectAllPlayers() {
+                this.logger.log("Desconectando todos os jogadores...");
+                
+                for (const player of this.players) {
+                    player.disconnect();
+                }
+                
+                this.players = [];
+                
+                // Readicionar o jogador principal
+                this.players.push(this.mainPlayer);
+                
+                this.updatePlayerList();
+                this.stopSimulation();
+                
+                this.logger.log("Todos os jogadores foram desconectados");
+            }
+            
+            async checkStatus() {
+                this.logger.log("Verificando status do servidor...");
+                
+                try {
+                    const success = await this.checkServerConnection();
+                    
+                    if (success) {
+                        this.logger.log("Servidor está online!");
+                    } else {
+                        throw new Error("Servidor retornou status de erro");
+                    }
+                } catch (error) {
+                    this.logger.error("Servidor não está acessível", error);
+                    this.mockMode = true;
+                    this.logger.log("Usando modo de simulação local...");
+                }
+            }
+            
+            addBot() {
+                const id = this.players.length;
+                const bot = new TestPlayer(id, this.logger, this.config, this, this.mockMode);
+                
+                bot.connect()
+                    .then(() => {
+                        this.players.push(bot);
+                        this.logger.log(`Bot ${bot.username} adicionado com sucesso`);
+                        this.updatePlayerList();
+                    })
+                    .catch(error => {
+                        this.logger.error(`Erro ao adicionar bot ${bot.username}`, error);
+                    });
+            }
+            
+            startSimulation() {
+                if (this.simulationActive) {
+                    this.logger.log("Simulação já está em execução");
+                    return;
+                }
+                
+                this.logger.log("Iniciando simulação...");
+                this.simulationActive = true;
+                
+                // Garantir que temos pelo menos alguns bots
+                if (this.players.length <= 1) {
+                    const botsToAdd = this.config.numTestPlayers;
+                    this.logger.log(`Adicionando ${botsToAdd} bots para a simulação...`);
+                    
+                    for (let i = 0; i < botsToAdd; i++) {
+                        this.addBot();
+                    }
+                }
+                
+                // Iniciar loop de simulação
+                this.simulationInterval = setInterval(() => {
+                    this.simulateActions();
+                }, 2000);
+                
+                this.logger.log("Simulação iniciada com sucesso");
+            }
+            
+            stopSimulation() {
+                if (!this.simulationActive) {
+                    return;
+                }
+                
+                this.logger.log("Parando simulação...");
+                this.simulationActive = false;
+                
+                if (this.simulationInterval) {
+                    clearInterval(this.simulationInterval);
+                    this.simulationInterval = null;
+                }
+                
+                this.logger.log("Simulação parada");
+            }
+            
+            simulateActions() {
+                if (!this.simulationActive || this.players.length <= 1) {
+                    return;
+                }
+                
+                // Para cada bot, simular alguma ação aleatória
+                for (let i = 1; i < this.players.length; i++) {
+                    const bot = this.players[i];
+                    
+                    if (!bot.connected) continue;
+                    
+                    const action = Math.floor(Math.random() * 10);
+                    
+                    // 70% de chance de atirar em outro jogador
+                    if (action < 7) {
+                        // Escolher um alvo aleatório
+                        const targets = this.players.filter(p => 
+                            p !== bot && p.connected && p.team !== bot.team);
+                        
+                        if (targets.length > 0) {
+                            const target = targets[Math.floor(Math.random() * targets.length)];
+                            bot.simulateShot(target);
+                        }
+                    }
+                    // 20% de chance de enviar mensagem de chat
+                    else if (action < 9) {
+                        const messages = [
+                            "Boa jogada!",
+                            "Preciso de ajuda aqui!",
+                            "Vamos capturar o ponto!",
+                            "Medic!",
+                            "Defendam a base!",
+                            "Cuidado com o sniper!",
+                            "GG",
+                            "Venham comigo!"
+                        ];
+                        
+                        const message = messages[Math.floor(Math.random() * messages.length)];
+                        bot.sendChatMessage(message);
+                    }
+                    // 10% de não fazer nada
+                }
+            }
+            
+            sendChatMessage() {
+                const input = document.getElementById('chatInput');
+                if (!input || !input.value.trim()) return;
+                
+                const message = input.value.trim();
+                input.value = '';
+                
+                this.mainPlayer.sendChatMessage(message);
+                
+                // Adicionar a mensagem ao chat local
+                this.addChatMessage(this.mainPlayer.username, message, this.mainPlayer.team);
+            }
+            
+            addChatMessage(sender, message, team) {
+                if (!this.chatMessages) return;
+                
+                const messageElem = document.createElement('div');
+                messageElem.classList.add('chat-message');
+                
+                const senderSpan = document.createElement('span');
+                senderSpan.classList.add(team === 'RED' ? 'team-red' : 'team-blu');
+                senderSpan.textContent = `${sender}: `;
+                
+                messageElem.appendChild(senderSpan);
+                messageElem.appendChild(document.createTextNode(message));
+                
+                this.chatMessages.appendChild(messageElem);
+                this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+            }
+            
+            updatePlayerList() {
+                if (!this.playerListElem) return;
+                
+                // Limpar lista atual
+                this.playerListElem.innerHTML = '<h4>Jogadores Conectados</h4>';
+                
+                // Adicionar cada jogador
+                for (const player of this.players) {
+                    if (!player.connected) continue;
+                    
+                    const playerItem = document.createElement('div');
+                    playerItem.classList.add('player-item');
+                    
+                    const playerInfo = document.createElement('div');
+                    playerInfo.classList.add('player-info');
+                    
+                    const teamClass = player.team === 'RED' ? 'team-red' : 'team-blu';
+                    playerInfo.innerHTML = `<span class="${teamClass}">${player.username}</span> | ${player.playerClass} | HP: ${player.health}`;
+                    
+                    playerItem.appendChild(playerInfo);
+                    
+                    // Adicionar botão para remover bot (exceto jogador principal)
+                    if (player !== this.mainPlayer) {
+                        const btnRemove = document.createElement('button');
+                        btnRemove.classList.add('danger');
+                        btnRemove.textContent = 'X';
+                        btnRemove.onclick = () => {
+                            player.disconnect();
+                            const index = this.players.indexOf(player);
+                            if (index > -1) {
+                                this.players.splice(index, 1);
+                            }
+                            this.updatePlayerList();
+                        };
+                        
+                        playerItem.appendChild(btnRemove);
+                    }
+                    
+                    this.playerListElem.appendChild(playerItem);
+                }
+            }
+            
+            getPlayerById(id) {
+                return this.players.find(player => player.playerId === id);
+            }
+            
+            getPlayerByMeshId(id) {
+                return this.players.find(player => player.id === parseInt(id));
+            }
+        }
+
+        // Inicializar o gerenciador de jogo quando a página carregar
+        window.addEventListener('DOMContentLoaded', () => {
+            const gameManager = new GameManager();
+            gameManager.initGame();
+            
+            // Adicionar gameManager à janela para debug
+            window.gameManager = gameManager;
         });
     </script>
 </body>
